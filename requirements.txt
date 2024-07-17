@@ -1,0 +1,11 @@
+Django>=3.2,<4.0
+djangorestframework
+python-dotenv
+openai
+Pillow
+boto3
+google-generativeai
+anthropic
+pdf2image
+psycopg2-binary
+django-cors-headers

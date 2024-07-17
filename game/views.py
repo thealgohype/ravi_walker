@@ -19,8 +19,6 @@ import re
 from collections import Counter
 import time
 from pdf2image import convert_from_bytes
-import tempfile
-import fitz
 from dotenv import load_dotenv
 import io
 from PIL import Image
@@ -30,15 +28,17 @@ import json
 import psycopg2
 import urllib.parse
 from psycopg2.extras import Json
+import logging
 
 
 def perform_ocr_and_validate1(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 5
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
     best_validation_result = ""
+
     while attempts < MAX_ATTEMPTS:
         attempts += 1
         print(f"Attempt {attempts} of {MAX_ATTEMPTS}")
@@ -63,7 +63,6 @@ def perform_ocr_and_validate1(image_data, anthropic_client, openai_client,
             }])
         claude_text = claude_response.content[0].text
 
-        # Validate with GPT-4 Vision
         gpt4_response = openai_client.chat.completions.create(
             model="gpt-4-vision-preview",
             messages=[{
@@ -97,23 +96,28 @@ def perform_ocr_and_validate1(image_data, anthropic_client, openai_client,
             best_validation_result = validation_result
 
         if accuracy >= 85.0:
-            return claude_text, validation_result, accuracy
+
+            return best_claude_text, best_validation_result, accuracy
 
         print("Accuracy below expectation. Retrying...")
 
     print(
         f"Max attempts reached. Using best result (Accuracy: {best_accuracy:.2f}%)"
     )
+
     return best_claude_text, best_validation_result, best_accuracy
 
 
 def perform_ocr_and_validate2(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 5
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
     best_validation_result = ""
+
+    total_cost_gpt4o = 0
+    total_cost_gpt4 = 0
     while attempts < MAX_ATTEMPTS:
         attempts += 1
         print(f"Attempt {attempts} of {MAX_ATTEMPTS}")
@@ -177,7 +181,7 @@ def perform_ocr_and_validate2(image_data, anthropic_client, openai_client,
             best_validation_result = validation_result
 
         if accuracy >= 85.0:
-            return claude_text, validation_result, accuracy
+            return best_claude_text, best_validation_result, accuracy
 
         print("Accuracy below expectation. Retrying...")
 
@@ -189,12 +193,16 @@ def perform_ocr_and_validate2(image_data, anthropic_client, openai_client,
 
 def perform_ocr_and_validate3(image_data, gemini_model, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 5
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
     best_validation_result = ""
     img_str = base64.b64encode(image_data).decode('utf-8')
+    # Cost per token for GPT-4 Vision Preview
+
+    total_cost_gemini = 0
+    total_cost_gpt4 = 0
     while attempts < MAX_ATTEMPTS:
         attempts += 1
         print(f"Attempt {attempts} of {MAX_ATTEMPTS}")
@@ -266,23 +274,27 @@ def perform_ocr_and_validate3(image_data, gemini_model, openai_client,
             best_validation_result = validation_result
 
         if accuracy >= 85.0:
-            return gemini_text, validation_result, accuracy
+            return gemini_text, validation_result, accuracy, total_cost
 
         print("Accuracy below expectation. Retrying...")
 
     print(
         f"Max attempts reached. Using best result (Accuracy: {best_accuracy:.2f}%)"
     )
-    return best_claude_text, best_validation_result, best_accuracy
+    return best_claude_text, best_validation_result, best_accuracy, total_cost
 
 
 def perform_ocr_and_validate4(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 5
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
     best_validation_result = ""
+    # Cost per token for GPT-4 Vision Preview
+
+    total_cost_claude = 0
+    total_cost_gpt4 = 0
     while attempts < MAX_ATTEMPTS:
         attempts += 1
         print(f"Attempt {attempts} of {MAX_ATTEMPTS}")
@@ -341,7 +353,8 @@ def perform_ocr_and_validate4(image_data, anthropic_client, openai_client,
             best_validation_result = validation_result
 
         if accuracy >= 85.0:
-            return claude_text, validation_result, accuracy
+
+            return best_claude_text, best_validation_result, accuracy
 
         print("Accuracy below expectation. Retrying...")
 
@@ -353,12 +366,16 @@ def perform_ocr_and_validate4(image_data, anthropic_client, openai_client,
 
 def perform_ocr_and_validate6(image_data, gemini_model, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 5
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
     best_validation_result = ""
     img_str = base64.b64encode(image_data).decode('utf-8')
+    # Cost per token for GPT-4 Vision Preview
+
+    total_cost_gemini = 0
+    total_cost_gpt4 = 0
     while attempts < MAX_ATTEMPTS:
         attempts += 1
         print(f"Attempt {attempts} of {MAX_ATTEMPTS}")
@@ -436,6 +453,7 @@ def perform_ocr_and_validate6(image_data, gemini_model, openai_client,
     print(
         f"Max attempts reached. Using best result (Accuracy: {best_accuracy:.2f}%)"
     )
+
     return best_claude_text, best_validation_result, best_accuracy
 
 
@@ -446,6 +464,11 @@ def perform_ocr_and_validate7(image_data, anthropic_client, openai_client,
     best_accuracy = 0
     best_claude_text = ""
     best_validation_result = ""
+    # Cost per token for GPT-4 Vision Preview
+
+    total_cost_claude = 0
+    total_cost_gpt4 = 0
+
     while attempts < MAX_ATTEMPTS:
         attempts += 1
         print(f"Attempt {attempts} of {MAX_ATTEMPTS}")
@@ -504,7 +527,7 @@ def perform_ocr_and_validate7(image_data, anthropic_client, openai_client,
             best_validation_result = validation_result
 
         if accuracy >= 85.0:
-            return claude_text, validation_result, accuracy
+            return best_claude_text, best_validation_result, accuracy
 
         print("Accuracy below expectation. Retrying...")
 
@@ -701,6 +724,7 @@ def save_to_database(extracted_info, db_credentials):
 
 def final_process1(claude_text, anthropic_client, db_credentials,
                    final_process_prompt):
+
     claude_response = anthropic_client.messages.create(
         model="claude-3-5-sonnet-20240620",
         system=
@@ -732,6 +756,7 @@ def final_process1(claude_text, anthropic_client, db_credentials,
 
 
 def final_process2(gpt4_text, client, db_credentials, final_process_prompt):
+
     gpt4_response = client.chat.completions.create(
         model="gpt-4o",
         messages=[{
@@ -768,7 +793,6 @@ def final_process2(gpt4_text, client, db_credentials, final_process_prompt):
 def final_process3(claude_text, model, db_credentials, final_process_prompt):
 
     prompt = f"{final_process_prompt}\n\nHere is the OCR output: {claude_text}"
-
     gemini_response = model.generate_content(prompt)
 
     extracted_info = gemini_response.text
@@ -791,6 +815,7 @@ def final_process3(claude_text, model, db_credentials, final_process_prompt):
 
 def final_process4(claude_text, anthropic_client, db_credentials,
                    final_process_prompt):
+
     claude_response = anthropic_client.messages.create(
         model="claude-3-haiku-20240307",
         system=
@@ -822,6 +847,7 @@ def final_process4(claude_text, anthropic_client, db_credentials,
 
 
 def final_process5(gpt4_text, client, db_credentials, final_process_prompt):
+
     gpt4_response = client.chat.completions.create(
         model="gpt-3.5-turbo-0125",
         messages=[{
@@ -858,7 +884,6 @@ def final_process5(gpt4_text, client, db_credentials, final_process_prompt):
 def final_process6(claude_text, model, db_credentials, final_process_prompt):
 
     prompt = f"{final_process_prompt}\n\nHere is the OCR output: {claude_text}"
-
     gemini_response = model.generate_content(prompt)
 
     extracted_info = gemini_response.text
@@ -874,13 +899,14 @@ def final_process6(claude_text, model, db_credentials, final_process_prompt):
             return json_string
     else:
         print("No valid JSON found in the extracted info")
-        return None
+        return extracted_info
     save_to_database(extracted_info_new, db_credentials)
     return extracted_info
 
 
 def final_process7(claude_text, anthropic_client, db_credentials,
                    final_process_prompt):
+
     claude_response = anthropic_client.messages.create(
         model="claude-3-haiku-20240307",
         system=
@@ -912,6 +938,7 @@ def final_process7(claude_text, anthropic_client, db_credentials,
 
 
 def json_to_html_with_claude(json_string, anthropic_client):
+
     prompt = f"""
     You are an expert in converting JSON data to semantic HTML. Your task is to take the following JSON data and convert it into a well-structured, accessible HTML format. Use appropriate HTML tags to represent the data structure and content meaningfully.
 
@@ -940,6 +967,7 @@ def json_to_html_with_claude(json_string, anthropic_client):
     return html_output
 
 
+'''
 @csrf_exempt
 @api_view(['POST', 'GET'])
 def Value1(request):
@@ -949,7 +977,7 @@ def Value1(request):
         option2 = request.POST.get('refining_model')
         validation_prompt = request.POST.get('validation_prompt')
         refining_prompt = request.POST.get('refining_prompt')
-
+        print(file.content_type)
         file_data = file.read()
 
         if file.content_type == 'application/pdf':
@@ -1050,3 +1078,151 @@ def Value1(request):
     # If neither POST nor GET, return an error
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
+'''
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
+@csrf_exempt
+@api_view(['POST', 'GET'])
+def Value1(request):
+    try:
+        if request.method == 'POST':
+            file = request.FILES.get('file')
+            option1 = request.POST.get('validation_model')
+            option2 = request.POST.get('refining_model')
+            validation_prompt = request.POST.get('validation_prompt')
+            refining_prompt = request.POST.get('refining_prompt')
+            print(file.content_type)
+            print(option1)
+            print(option2)
+            print(validation_prompt)
+            print(refining_prompt)
+
+            if not file or not option1 or not option2 or not validation_prompt or not refining_prompt:
+                return JsonResponse({'error': 'Missing required parameters'},
+                                    status=400)
+
+            file_data = file.read()
+            image_data = []
+            if file.content_type == 'application/pdf':
+                images = convert_from_bytes(file_data)
+                for img in images:
+                    img_byte_arr = io.BytesIO()
+                    img.save(img_byte_arr, format='JPEG')
+                    image_data.append(img_byte_arr.getvalue())
+            elif file.content_type in ['image/png', 'image/jpeg']:
+                image_data = [file_data]
+            else:
+                return JsonResponse({'error': 'Unsupported file type'},
+                                    status=400)
+
+            anthropic_client = Anthropic(api_key=os.getenv('ANTHROPIC_KEY'))
+            openai_client = OpenAI(api_key=os.getenv('OPEN_AI_KEY'))
+            genai.configure(api_key=os.getenv('GENAI_KEY'))
+            gemini_model = genai.GenerativeModel('gemini-1.5-pro')
+            gemini_flash_model = genai.GenerativeModel('gemini-1.5-flash')
+            db_url = os.getenv('DATABASE_URL')
+            result = urllib.parse.urlparse(db_url)
+            db_credentials = {
+                'host': result.hostname,
+                'database': result.path[1:],
+                'user': result.username,
+                'password': result.password,
+                'port': result.port
+            }
+
+            helper_images = []
+            main_text = ''
+            for img_data in image_data:
+                if option1 == 'GEMINI 1.5 PRO':
+                    claude_text, validation_result, accuracy = perform_ocr_and_validate3(
+                        img_data, gemini_model, openai_client,
+                        validation_prompt)
+                elif option1 == 'CLAUDE 3.5 SONNET':
+                    claude_text, validation_result, accuracy = perform_ocr_and_validate1(
+                        img_data, anthropic_client, openai_client,
+                        validation_prompt)
+                elif option1 == 'GPT 4o':
+                    claude_text, validation_result, accuracy = perform_ocr_and_validate2(
+                        img_data, anthropic_client, openai_client,
+                        validation_prompt)
+                elif option1 == 'CLAUDE 3 HAIKU':
+                    claude_text, validation_result, accuracy = perform_ocr_and_validate4(
+                        img_data, anthropic_client, openai_client,
+                        validation_prompt)
+                elif option1 == 'GEMINI 1.5 FLASH':
+                    claude_text, validation_result, accuracy = perform_ocr_and_validate6(
+                        img_data, gemini_flash_model, openai_client,
+                        validation_prompt)
+                else:  # CLAUDE OPUS
+                    claude_text, validation_result, accuracy = perform_ocr_and_validate7(
+                        img_data, anthropic_client, openai_client,
+                        validation_prompt)
+
+                logger.debug(f"Accuracy: {accuracy}%")
+                main_text += claude_text
+
+                helper_images.append(img_data)
+
+            logger.debug("Main text processing done")
+
+            if option2 == 'CLAUDE 3.5 SONNET':
+                extracted_info = final_process1(claude_text, anthropic_client,
+                                                db_credentials,
+                                                refining_prompt)
+            elif option2 == 'GEMINI 1.5 PRO':
+                extracted_info = final_process3(claude_text, gemini_model,
+                                                db_credentials,
+                                                refining_prompt)
+            elif option2 == 'GPT 4o':
+                extracted_info = final_process2(claude_text, openai_client,
+                                                db_credentials,
+                                                refining_prompt)
+            elif option2 == 'CLAUDE 3 HAIKU':
+                extracted_info = final_process4(claude_text, anthropic_client,
+                                                db_credentials,
+                                                refining_prompt)
+            elif option2 == 'GEMINI 1.5 FLASH':
+                extracted_info = final_process6(claude_text,
+                                                gemini_flash_model,
+                                                db_credentials,
+                                                refining_prompt)
+            elif option2 == 'GPT 3.5':
+                extracted_info = final_process5(claude_text, openai_client,
+                                                db_credentials,
+                                                refining_prompt)
+            else:  # CLAUDE OPUS
+                extracted_info = final_process7(claude_text, anthropic_client,
+                                                db_credentials,
+                                                refining_prompt)
+
+            logger.debug("Refinement processing done")
+
+            html_output = json_to_html_with_claude(extracted_info,
+                                                   anthropic_client)
+            logger.debug("HTML generation done")
+
+            response_data = {
+                'main_text': main_text,
+                'extracted_info': extracted_info,
+                'html_output': html_output
+            }
+            return JsonResponse(response_data, safe=False)
+
+        elif request.method == 'GET':
+            return JsonResponse(
+                {'message': 'Please use POST method to process files'})
+
+        else:
+            return JsonResponse({'error': 'Invalid request method'},
+                                status=405)
+
+    except Exception as e:
+        logger.error(f"Error in Value1 view: {str(e)}")
+        return JsonResponse(
+            {
+                'error': 'Internal Server Error',
+                'details': str(e)
+            }, status=500)
