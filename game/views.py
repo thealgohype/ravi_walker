@@ -34,7 +34,7 @@ from pdf2image import convert_from_bytes
 
 def perform_ocr_and_validate1(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 2
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
@@ -111,7 +111,7 @@ def perform_ocr_and_validate1(image_data, anthropic_client, openai_client,
 
 def perform_ocr_and_validate2(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 2
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
@@ -192,7 +192,7 @@ def perform_ocr_and_validate2(image_data, anthropic_client, openai_client,
 
 def perform_ocr_and_validate3(image_data, gemini_model, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 2
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
@@ -289,7 +289,7 @@ def perform_ocr_and_validate3(image_data, gemini_model, openai_client,
 
 def perform_ocr_and_validate4(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 2
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
@@ -367,7 +367,7 @@ def perform_ocr_and_validate4(image_data, anthropic_client, openai_client,
 
 def perform_ocr_and_validate6(image_data, gemini_model, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 2
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
@@ -454,7 +454,7 @@ def perform_ocr_and_validate6(image_data, gemini_model, openai_client,
 
 def perform_ocr_and_validate7(image_data, anthropic_client, openai_client,
                               validation_prompt):
-    MAX_ATTEMPTS = 2
+    MAX_ATTEMPTS = 3
     attempts = 0
     best_accuracy = 0
     best_claude_text = ""
@@ -467,7 +467,7 @@ def perform_ocr_and_validate7(image_data, anthropic_client, openai_client,
 
         claude_response = anthropic_client.messages.create(
             model="claude-3-opus-20240229",
-            max_tokens=1000,
+            max_tokens=2000,
             messages=[{
                 "role":
                 "user",
@@ -703,7 +703,7 @@ def final_process1(claude_text, anthropic_client, db_credentials,
             "content":
             f"{final_process_prompt}\n\nHere is the OCR output: {claude_text}"
         }],
-        max_tokens=2000)
+        max_tokens=4000)
 
     extracted_info = claude_response.content[0].text
     json_match = re.search(r'\{[\s\S]*\}', extracted_info)
@@ -738,7 +738,7 @@ def final_process2(gpt4_text, client, db_credentials, final_process_prompt):
             "content":
             f"{final_process_prompt}\n\nHere is the OCR output: {gpt4_text}"
         }],
-        max_tokens=2000)
+        max_tokens=4000)
 
     extracted_info = gpt4_response.choices[0].message.content
     json_match = re.search(r'\{[\s\S]*\}', extracted_info)
@@ -794,7 +794,7 @@ def final_process4(claude_text, anthropic_client, db_credentials,
             "content":
             f"{final_process_prompt}\n\nHere is the OCR output: {claude_text}"
         }],
-        max_tokens=2000)
+        max_tokens=4000)
 
     extracted_info = claude_response.content[0].text
     json_match = re.search(r'\{[\s\S]*\}', extracted_info)
@@ -829,7 +829,7 @@ def final_process5(gpt4_text, client, db_credentials, final_process_prompt):
             "content":
             f"{final_process_prompt}\n\nHere is the OCR output: {gpt4_text}"
         }],
-        max_tokens=2000)
+        max_tokens=4000)
 
     extracted_info = gpt4_response.choices[0].message.content
     json_match = re.search(r'\{[\s\S]*\}', extracted_info)
@@ -885,7 +885,7 @@ def final_process7(claude_text, anthropic_client, db_credentials,
             "content":
             f"{final_process_prompt}\n\nHere is the OCR output: {claude_text}"
         }],
-        max_tokens=2000)
+        max_tokens=4000)
 
     extracted_info = claude_response.content[0].text
     json_match = re.search(r'\{[\s\S]*\}', extracted_info)
@@ -953,7 +953,7 @@ def Value1(request):
             if not files or not option1 or not option2 or not validation_prompt or not refining_prompt:
                 return JsonResponse({'error': 'Missing required parameters'},
                                     status=400)
-         
+
             image_data = []
 
             for file in files:

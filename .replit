@@ -1,7 +1,6 @@
-
 modules = ["python-3.12"]
 run = "python3 manage.py runserver 0.0.0.0:3000"
-#run = "python3 manage.py runserver 0.0.0.0:3000"
+#run = "pip install gunicorn && gunicorn walker.wsgi:application --bind 0.0.0.0:8000 --timeout 1800"
 [nix]
 channel = "stable-24_05"
 
